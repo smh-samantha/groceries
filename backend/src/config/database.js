@@ -10,12 +10,23 @@ const {
   NODE_ENV = 'development',
 } = process.env;
 
-const sequelize = new Sequelize(
-  DATABASE_URL || `postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}`,
-  {
-    dialect: 'postgres',
-    logging: NODE_ENV === 'development' ? console.log : false,
-  },
-);
+const connectionString =
+  DATABASE_URL || `postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}`;
+
+const sslRequired =
+  connectionString?.includes('sslmode=require') || connectionString?.includes('ssl=true');
+
+const sequelize = new Sequelize(connectionString, {
+  dialect: 'postgres',
+  logging: NODE_ENV === 'development' ? console.log : false,
+  dialectOptions: sslRequired
+    ? {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false,
+        },
+      }
+    : {},
+});
 
 module.exports = { sequelize };
