@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: meals_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: meals
+    volumes:
+      - meals_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: ./backend
+    container_name: meals_backend
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/meals
+    command: sh -c "until nc -z postgres 5432; do echo '⏳ Waiting for Postgres...'; sleep 1; done; echo '✅ Postgres is up'; npm run dev"
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: meals_frontend
+    restart: unless-stopped
+    environment:
+      - VITE_API_URL=http://localhost:4000/api
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  meals_postgres_data:
