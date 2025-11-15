@@ -17,8 +17,9 @@ app.use('/api', routes);
 
 const start = async () => {
   try {
-    const shouldAlter = process.env.DB_AUTO_MIGRATE !== 'false';
-    await sequelize.sync({ alter: shouldAlter });
+    await sequelize.authenticate();
+    await sequelize.sync();
+    console.log('Database connected & models synced.');
     app.listen(PORT, () => {
       console.log(`Backend listening on port ${PORT}`);
     });
