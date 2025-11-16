@@ -123,7 +123,7 @@ const Rotation = ({ user, meals }) => {
         <p className="eyebrow">Rotation</p>
         <p className="lead">
           Pick a timeframe for a rotation, add meals into each week, and resize servings when plans change. Every
-          tweak feeds straight into the grocery list Test.
+          tweak feeds straight into the grocery list.
         </p>
       </header>
 
