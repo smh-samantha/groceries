@@ -24,7 +24,8 @@ Meals/
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
-Update `backend/.env` if you change database credentials or later switch to Supabase (see below).
+Update `backend/.env` if you change database credentials or later switch to Supabase (see below).  
+`LOCAL_DATABASE_URL` is used for local dev by default. Set `USE_REMOTE_DB=true` (and `DATABASE_URL`) only when you want to hit Supabase/Render.
 > The backend auto-migrates tables on startup (`sequelize.sync({ alter: true })`). Set `DB_AUTO_MIGRATE=false` in `backend/.env` if you prefer to manage migrations manually.
 
 ### 2. Docker-first Workflow
