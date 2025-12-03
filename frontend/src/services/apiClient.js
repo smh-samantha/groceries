@@ -46,6 +46,13 @@ export const apiClient = {
   createMeal: (user, body) => request('/meals', { method: 'POST', body }, user),
   updateMeal: (user, id, body) => request(`/meals/${id}`, { method: 'PUT', body }, user),
   deleteMeal: (user, id) => request(`/meals/${id}`, { method: 'DELETE' }, user),
+  getHouseholdItems: (user, params) => request('/household-groups', { params }, user),
+  createHouseholdItem: (user, body) =>
+    request('/household-groups', { method: 'POST', body }, user),
+  updateHouseholdItem: (user, id, body) =>
+    request(`/household-groups/${id}`, { method: 'PUT', body }, user),
+  deleteHouseholdItem: (user, id) =>
+    request(`/household-groups/${id}`, { method: 'DELETE' }, user),
   getRotation: (user) => request('/rotation', {}, user),
   updateRotationConfig: (user, body) => request('/rotation/config', { method: 'PUT', body }, user),
   addRotationEntry: (user, body) => request('/rotation/entries', { method: 'POST', body }, user),

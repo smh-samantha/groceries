@@ -1,57 +1,45 @@
-- change preference categories
+<!-- - change preference categories
     - Protien
     - Household
     - Slow Cooker Recipes
     - For Freezing
     - staples 
-    - Poultry
+    - Poultry -->
 
-- can have multiple categories (apply to lunch / dinner preferencnes)
 
-if under staples. add it to every grocery list
-    sami consider seperate dashboard 
-
-- change meal bank name. bc feminine hygiene stuff is not a meal
-
-- add friends, to share meals / groups
-
-- add AI to scrape in recipes. 
-
-- add a link section to the meal form 
-
-- add an upload file section so that you can store physical recipes if wanting to (PDF's / images)
-
-- fix image upload
-
-- make demos a little clearer
-
-- improve UX for adding a meal to a rotation. 
-
-- is combining ingredients cap sensitive?
-
-- change temp icon for image. remove placeholder 
-
-- fix the servings numbering (delete goes back to 1)
-
-- add with love to units 
-
-- alphabetise the item catgoerty, make defauult -nothing- 
-
-- add remove ingredient 
-
-- add save draft form
-
-- New dashboard that tells you what produce is in season
-
-- fix dropdown (no idea how yet)
-
-- fix the spacing on the meal summary tiles
-
-- add meals to rotation from meals page
-
-- non scrollable side bar so logout is within page borders
+# Sprint 1
 
 - checks dont persist when refreshed
 - refresh list function . refresh on change?
+- replace tick with cross - strike through task
 
-- replace tick with cross
+- tidy household groups form 
+<!-- - can have multiple categories (apply to lunch / dinner preferencnes) -->
+<!-- - add a link section to the meal form  -->
+<!-- - add an upload file section so that you can store physical recipes if wanting to (PDF's / images) -->
+- fix image upload, check other file upload
+- make demos a little clearer
+- make demo / how to section collapsible and collapsed by default
+- improve UX for adding a meal to a rotation. 
+- is combining ingredients cap sensitive? make sure its not
+<!-- - change temp icon for image. remove placeholder  -->
+- fix the servings numbering (delete goes back to 1) (i dont really remember what this means but i will try deleting some shi and report back)
+- add with love to units 
+- alphabetise the item catgoerty, make defauult -nothing- (i also dont recall what this means)
+<!-- - add remove ingredient  -->
+- add save draft form
+- fix dropdown (no idea how yet) (bitch! what drop down?)
+- fix the spacing on the meal summary tiles
+- add meals to rotation from meal bank dashboard
+- non scrollable side bar so logout is within page borders
+
+
+# Sprint 2
+
+- add friends, to share meals / groups
+
+
+# Sprint 3
+
+- add AI to scrape in recipes. 
+- New dashboard that tells you what produce is in season

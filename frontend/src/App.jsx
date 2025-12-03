@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import MealBank from './pages/MealBank';
+import HouseholdBank from './pages/HouseholdBank';
 import Rotation from './pages/Rotation';
 import GroceryList from './pages/GroceryList';
 import { apiClient } from './services/apiClient';
@@ -18,6 +19,8 @@ const App = () => {
   });
   const [meals, setMeals] = useState([]);
   const [loadingMeals, setLoadingMeals] = useState(false);
+  const [householdItems, setHouseholdItems] = useState([]);
+  const [loadingHousehold, setLoadingHousehold] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [error, setError] = useState('');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -48,6 +51,8 @@ const App = () => {
       localStorage.setItem('meals-user', JSON.stringify(data.user));
       const mealsResponse = await apiClient.getMeals(data.user);
       setMeals(mealsResponse.meals || []);
+      const householdResponse = await apiClient.getHouseholdItems(data.user);
+      setHouseholdItems(householdResponse.items || []);
     } catch (err) {
       setError(err.message || 'Unable to log in');
       throw err;
@@ -55,6 +60,20 @@ const App = () => {
       setAuthLoading(false);
     }
   };
+
+  const fetchHouseholdItems = useCallback(async () => {
+    if (!user) return;
+    setLoadingHousehold(true);
+    setError('');
+    try {
+      const data = await apiClient.getHouseholdItems(user);
+      setHouseholdItems(data.items || []);
+    } catch (err) {
+      setError(err.message || 'Unable to load household items');
+    } finally {
+      setLoadingHousehold(false);
+    }
+  }, [user]);
 
   const handleSelectPage = (page) => {
     setActivePage(page);
@@ -67,6 +86,7 @@ const App = () => {
     setUser(null);
     localStorage.removeItem('meals-user');
     setMeals([]);
+    setHouseholdItems([]);
     setMobileNavOpen(false);
   };
 
@@ -77,12 +97,19 @@ const App = () => {
     if (activePage === 'groceries') {
       return <GroceryList user={user} />;
     }
+    if (activePage === 'household') {
+      return <HouseholdBank user={user} items={householdItems} onRefresh={fetchHouseholdItems} />;
+    }
     return <MealBank user={user} meals={meals} onRefresh={fetchMeals} />;
-  }, [activePage, user, meals, fetchMeals]);
+  }, [activePage, user, meals, householdItems, fetchMeals, fetchHouseholdItems]);
 
   useEffect(() => {
     fetchMeals();
   }, [fetchMeals]);
+
+  useEffect(() => {
+    fetchHouseholdItems();
+  }, [fetchHouseholdItems]);
 
   useEffect(() => {
     localStorage.setItem('meals-active-page', activePage);
@@ -130,6 +157,7 @@ const App = () => {
           </button>
         )}
         {loadingMeals && <div className="loading">Syncing meals…</div>}
+        {loadingHousehold && <div className="loading">Syncing household items…</div>}
         {error && <p className="error">{error}</p>}
         {currentPage}
       </main>

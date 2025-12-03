@@ -19,6 +19,9 @@ const MealCard = ({ meal, onEdit, onDelete }) => {
   const [open, setOpen] = useState(false);
   const toggle = () => setOpen((prev) => !prev);
   const photo = meal.imageUrl || placeholderImage;
+  const preferenceLabel = Array.isArray(meal.preference)
+    ? meal.preference.join(', ')
+    : meal.preference;
 
   return (
     <div className={`card meal-card ${open ? 'open' : ''}`}>
@@ -27,7 +30,7 @@ const MealCard = ({ meal, onEdit, onDelete }) => {
       </div>
       <button type="button" className="meal-card-toggle" onClick={toggle}>
         <div>
-          <p className="eyebrow">{meal.preference}</p>
+          <p className="eyebrow">{preferenceLabel}</p>
           <h3>{meal.name}</h3>
         </div>
         <div className="meal-meta">
@@ -52,6 +55,20 @@ const MealCard = ({ meal, onEdit, onDelete }) => {
       {open && (
         <div className="meal-details">
           {meal.notes && <p className="notes">{meal.notes}</p>}
+          {(meal.recipeLink || meal.recipeAttachment) && (
+            <div className="resource-links">
+              {meal.recipeLink && (
+                <a href={meal.recipeLink} target="_blank" rel="noreferrer">
+                  Recipe link
+                </a>
+              )}
+              {meal.recipeAttachment && (
+                <a href={meal.recipeAttachment} target="_blank" rel="noreferrer">
+                  Recipe file
+                </a>
+              )}
+            </div>
+          )}
           <div className="ingredients-block">
             {meal.ingredients?.map((item) => (
               <div key={`${meal.id}-${item.id}`} className="ingredient">

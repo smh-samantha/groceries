@@ -4,6 +4,9 @@ const Ingredient = require('./Ingredient');
 const MealIngredient = require('./MealIngredient');
 const RotationConfig = require('./RotationConfig');
 const RotationEntry = require('./RotationEntry');
+const HouseholdItem = require('./HouseholdItem');
+const HouseholdGroup = require('./HouseholdGroup');
+const HouseholdGroupItem = require('./HouseholdGroupItem');
 
 // User relationships
 User.hasOne(RotationConfig, { foreignKey: 'userId', as: 'rotationConfig' });
@@ -17,6 +20,23 @@ Meal.belongsTo(User, { foreignKey: 'userId', as: 'owner' });
 
 User.hasMany(Ingredient, { foreignKey: 'userId', as: 'ingredients' });
 Ingredient.belongsTo(User, { foreignKey: 'userId', as: 'owner' });
+
+User.hasMany(HouseholdItem, { foreignKey: 'userId', as: 'householdItems' });
+HouseholdItem.belongsTo(User, { foreignKey: 'userId', as: 'owner' });
+
+User.hasMany(HouseholdGroup, { foreignKey: 'userId', as: 'householdGroups' });
+HouseholdGroup.belongsTo(User, { foreignKey: 'userId', as: 'owner' });
+
+HouseholdGroup.belongsToMany(HouseholdItem, {
+  through: HouseholdGroupItem,
+  as: 'items',
+});
+HouseholdItem.belongsToMany(HouseholdGroup, {
+  through: HouseholdGroupItem,
+  as: 'groups',
+});
+HouseholdGroupItem.belongsTo(HouseholdGroup);
+HouseholdGroupItem.belongsTo(HouseholdItem);
 
 // Meal <-> Ingredient (many to many)
 Meal.belongsToMany(Ingredient, {
@@ -40,4 +60,7 @@ module.exports = {
   MealIngredient,
   RotationConfig,
   RotationEntry,
+  HouseholdItem,
+  HouseholdGroup,
+  HouseholdGroupItem,
 };

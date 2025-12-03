@@ -58,11 +58,44 @@ const imageSchema = z
     return value;
   });
 
+const preferenceSchema = z
+  .array(z.enum(MEAL_PREFERENCES))
+  .min(1)
+  .transform((prefs) => Array.from(new Set(prefs)));
+
+const urlOrEmptySchema = z
+  .union([z.string().url(), z.literal(''), z.null(), z.undefined()])
+  .transform((value) => {
+    if (!value) return null;
+    return value;
+  });
+
+const attachmentItemSchema = z
+  .string()
+  .regex(/^data:/)
+  .refine((value) => value.length < 2_000_000, 'Attachments must be under 2MB');
+
+const attachmentSchema = z
+  .union([
+    z.array(attachmentItemSchema),
+    attachmentItemSchema,
+    z.literal(''),
+    z.null(),
+    z.undefined(),
+  ])
+  .transform((value) => {
+    if (!value || value === '') return [];
+    if (Array.isArray(value)) return value;
+    return [value];
+  });
+
 const createMealSchema = z.object({
   name: z.string().min(1),
   servings: servingsSchema,
   imageUrl: imageSchema,
-  preference: z.enum(MEAL_PREFERENCES),
+  recipeLink: urlOrEmptySchema.optional(),
+  recipeAttachment: attachmentSchema.optional(),
+  preference: preferenceSchema,
   notes: z.string().optional().nullable(),
   ingredients: z.array(ingredientSchema).min(1),
 });
@@ -77,7 +110,7 @@ const listMeals = async (req, res) => {
     const where = { userId: req.user.id };
 
     if (preference && MEAL_PREFERENCES.includes(preference)) {
-      where.preference = preference;
+      where.preference = { [Op.contains]: [preference] };
     }
 
     if (search) {
@@ -112,6 +145,8 @@ const createMeal = async (req, res) => {
           name: payload.name.trim(),
           servings: payload.servings,
           preference: payload.preference,
+          recipeLink: payload.recipeLink,
+          recipeAttachment: payload.recipeAttachment,
           notes: payload.notes,
           imageUrl: payload.imageUrl,
           userId: req.user.id,
@@ -180,6 +215,8 @@ const updateMeal = async (req, res) => {
         name: parsed.name.trim(),
         servings: parsed.servings,
         preference: parsed.preference,
+        recipeLink: parsed.recipeLink,
+        recipeAttachment: parsed.recipeAttachment,
         notes: parsed.notes,
         imageUrl: parsed.imageUrl,
       });

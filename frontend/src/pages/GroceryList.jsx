@@ -3,6 +3,8 @@ import { apiClient } from '../services/apiClient';
 
 const ALL_WEEKS = [1, 2, 3, 4];
 
+const formatCategory = (value) => value.replace(/_/g, ' ');
+
 const GroceryList = ({ user }) => {
   const [selectedWeeks, setSelectedWeeks] = useState([1]);
   const [list, setList] = useState({});
@@ -126,14 +128,16 @@ const GroceryList = ({ user }) => {
       {loading && <div className="loading">Loading grocery list…</div>}
 
       {Object.keys(list).length === 0 && !loading && (
-        <div className="empty-state">No grocery items yet. Add meals to your rotation.</div>
+        <div className="empty-state">
+          No grocery items yet. Add meals to your rotation or include items from your Household Bank.
+        </div>
       )}
 
       {Object.keys(list).length > 0 && (
         <div className="card grocery-collection">
           {Object.entries(list).map(([category, items]) => (
             <div className="grocery-category" key={category}>
-              <h3 className="category-title">{category}</h3>
+              <h3 className="category-title">{formatCategory(category)}</h3>
               {items
                 .filter((item) => (showOnlyPending ? !checkedItems.has(item.name) : true))
                 .map((item) => (

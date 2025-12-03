@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import mealIcon from '../assets/icon-meal.svg';
+import householdIcon from '../assets/icon-household.svg';
 import rotationIcon from '../assets/icon-rotation.svg';
 import groceryIcon from '../assets/icon-grocery.svg';
 
 const navItems = [
   { key: 'meals', label: 'Meal Bank', icon: mealIcon },
+  { key: 'household', label: 'Household Bank', icon: householdIcon },
   { key: 'rotation', label: 'Rotation', icon: rotationIcon },
   { key: 'groceries', label: 'Groceries', icon: groceryIcon },
 ];
@@ -18,7 +20,15 @@ const Sidebar = ({
   onToggleMobile,
   isMobile,
 }) => {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('sidebar-collapsed') === 'true';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('sidebar-collapsed', String(collapsed));
+  }, [collapsed]);
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'open' : ''}`}>

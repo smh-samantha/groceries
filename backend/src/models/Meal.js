@@ -25,8 +25,18 @@ const Meal = sequelize.define(
       allowNull: true,
     },
     preference: {
-      type: DataTypes.ENUM(...MEAL_PREFERENCES),
+      type: DataTypes.ARRAY(DataTypes.STRING),
       allowNull: false,
+      defaultValue: ['dinner'],
+    },
+    recipeLink: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    recipeAttachment: {
+      type: DataTypes.ARRAY(DataTypes.TEXT),
+      allowNull: false,
+      defaultValue: [],
     },
     notes: {
       type: DataTypes.TEXT,

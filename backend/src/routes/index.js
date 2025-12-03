@@ -9,6 +9,12 @@ const {
   updateEntryServings,
 } = require('../controllers/rotationController');
 const { getGroceryList } = require('../controllers/groceryController');
+const {
+  listGroups,
+  createGroup,
+  updateGroup,
+  deleteGroup,
+} = require('../controllers/householdController');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
@@ -29,5 +35,10 @@ router.delete('/rotation/entries/:id', deleteEntry);
 router.patch('/rotation/entries/:id/servings', updateEntryServings);
 
 router.get('/grocery-list', getGroceryList);
+
+router.get('/household-groups', listGroups);
+router.post('/household-groups', createGroup);
+router.put('/household-groups/:id', updateGroup);
+router.delete('/household-groups/:id', deleteGroup);
 
 module.exports = router;

@@ -49,7 +49,7 @@ button {
   gap: 1.25rem;
   flex: 1;
   position: relative;
-  align-items: center;
+  align-items: stretch;
   text-align: center;
 }
 
@@ -64,6 +64,9 @@ button {
   flex-direction: column;
   gap: 0.5rem;
   align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  width: 100%;
 }
 
 .collapse-toggle {
@@ -85,9 +88,12 @@ button {
 .sidebar nav button {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 0.65rem;
   width: 100%;
-  padding: 0.65rem 0.75rem;
+  padding: 0.65rem 0.85rem;
+  margin-left: 0;
+  margin-right: 0;
   border-radius: 12px;
   border: none;
   background: transparent;
@@ -108,17 +114,31 @@ button {
   flex-direction: column;
   gap: 0.3rem;
   width: 100%;
-  align-items: center;
+  align-items: stretch;
 }
 
 .nav-icon {
   display: inline-flex;
   width: 20px;
   height: 20px;
-  margin-right: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.nav-icon img {
+  width: 18px;
+  height: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  display: block;
+  margin: 0 auto;
+  object-fit: contain;
 }
 
 .nav-label {
+  text-align: left;
   flex: 1;
 }
 
@@ -141,7 +161,7 @@ button {
 }
 
 .sidebar.collapsed h2 {
-  display: none;
+  visibility: hidden;
 }
 
 .sidebar.collapsed .nav-label {
@@ -150,6 +170,12 @@ button {
 
 .sidebar.collapsed nav button {
   justify-content: center;
+  align-items: center;
+  gap: 0;
+  padding: 0.5rem;
+  width: auto;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .sidebar.collapsed .sidebar-footer {
@@ -335,6 +361,24 @@ label {
   margin-bottom: 1rem;
 }
 
+.form-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.form-block label {
+  width: 100%;
+}
+
+.form-block.inline-two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
 .ingredients-block {
   display: flex;
   flex-direction: column;
@@ -362,9 +406,28 @@ label {
 
 .ingredient-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: 1.2fr 0.6fr 0.6fr 0.7fr auto;
+  gap: 0.65rem;
   margin-bottom: 0.75rem;
+  align-items: center;
+}
+
+.ingredient-row button {
+  width: auto;
+  justify-self: end;
+  border-radius: 8px;
+  padding: 0 0.9rem;
+  height: 40px;
+  min-height: 40px;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .ingredient-row {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
 }
 
 .meal-card {
@@ -575,13 +638,25 @@ label {
 
 .pill {
   border-radius: 999px;
-  padding: 0.4rem 1rem;
+  padding: 0.35rem 0.9rem;
   border: 1px solid #d1d1d6;
   background: transparent;
   color: #1c1c1e;
 }
 
 .pill.active {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.pill-options button {
+  border: 1px solid #d1d1d6;
+  background: #f7f7f7;
+  color: #1c1c1e;
+}
+
+.pill-options button.active {
   background: #111;
   color: #fff;
   border-color: #111;
@@ -645,6 +720,96 @@ label {
 .pending-toggle span {
   display: inline-flex;
   align-items: center;
+}
+
+.checkbox-group {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.checkbox-group legend {
+  font-size: 0.9rem;
+  color: #3a3a3c;
+  margin-bottom: 0.35rem;
+}
+
+.pill-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.pill-options.wide {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.9rem 1.2rem;
+  align-items: flex-end;
+}
+
+.stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.upload-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem;
+  border: 1px dashed #d1d1d6;
+  border-radius: 12px;
+  background: #fafafa;
+}
+
+.upload-card.wide {
+  width: 100%;
+}
+
+.upload-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dropzone {
+  border: 1px solid #e5e5ea;
+  border-radius: 10px;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: #fff;
+}
+
+.dropzone input {
+  width: auto;
+}
+
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.checkbox-inline input {
+  width: auto;
+  margin: 0;
 }
 
 @media (max-width: 600px) {

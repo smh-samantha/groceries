@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const { z } = require('zod');
-const { RotationEntry, Meal, Ingredient } = require('../models');
+const { RotationEntry, Meal, Ingredient, HouseholdGroup, HouseholdItem } = require('../models');
 
 const weeksSchema = z
   .object({
@@ -60,6 +60,7 @@ const getGroceryList = async (req, res) => {
             category: ingredient.category,
             units: {},
             meals: new Set(),
+            source: 'meal',
           };
         }
 
@@ -73,6 +74,41 @@ const getGroceryList = async (req, res) => {
         } else {
           aggregated[key].units[qtyUnit] =
             aggregated[key].units[qtyUnit] || null;
+        }
+      });
+    });
+
+    const householdGroups = await HouseholdGroup.findAll({
+      where: { userId: req.user.id, includeInGroceryList: true },
+      include: [
+        {
+          model: HouseholdItem,
+          as: 'items',
+          through: { attributes: ['quantityValue', 'quantityUnit'] },
+        },
+      ],
+    });
+
+    householdGroups.forEach((group) => {
+      group.items.forEach((item) => {
+        const key = `household:${item.name.toLowerCase()}`;
+        if (!aggregated[key]) {
+          aggregated[key] = {
+            name: item.name,
+            category: item.category,
+            units: {},
+            meals: new Set(),
+            source: 'household',
+          };
+        }
+        aggregated[key].meals.add(group.name);
+        const qtyValue = item.HouseholdGroupItem?.quantityValue;
+        const qtyUnit = item.HouseholdGroupItem?.quantityUnit || 'unit';
+        if (qtyValue !== null && qtyValue !== undefined) {
+          aggregated[key].units[qtyUnit] =
+            (aggregated[key].units[qtyUnit] || 0) + qtyValue;
+        } else {
+          aggregated[key].units[qtyUnit] = aggregated[key].units[qtyUnit] || null;
         }
       });
     });
@@ -104,6 +140,7 @@ const getGroceryList = async (req, res) => {
         combinedQuantity,
         meals: Array.from(item.meals),
         totals: item.units,
+        source: item.source,
       });
     });
 
