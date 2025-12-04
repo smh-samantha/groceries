@@ -65,4 +65,12 @@ export const apiClient = {
       user,
     ),
   getGroceryList: (user, params) => request('/grocery-list', { params }, user),
+  setGroceryCheck: (user, body) =>
+    request('/grocery-list/checks', { method: 'POST', body }, user),
+  clearGroceryChecks: (user) => request('/grocery-list/checks', { method: 'DELETE' }, user),
+  getFriends: (user) => request('/friends', {}, user),
+  addFriend: (user, username) => request('/friends', { method: 'POST', body: { username } }, user),
+  getShares: (user) => request('/shares', {}, user),
+  sendShare: (user, body) => request('/shares', { method: 'POST', body }, user),
+  acceptShare: (user, id) => request(`/shares/${id}/accept`, { method: 'POST' }, user),
 };

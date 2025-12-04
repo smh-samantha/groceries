@@ -8,6 +8,7 @@ const MEAL_PREFERENCES = [
   'slow_cooker',
   'freezer',
   'baby',
+  'dessert',
 ];
 
 const INGREDIENT_CATEGORIES = [
@@ -22,7 +23,7 @@ const INGREDIENT_CATEGORIES = [
   'other',
 ];
 
-const INGREDIENT_UNITS = ['unit', 'cup', 'tbsp', 'tsp', 'ml', 'l', 'g', 'kg'];
+const INGREDIENT_UNITS = ['unit', 'cup', 'tbsp', 'tsp', 'ml', 'l', 'g', 'kg', 'with_love'];
 
 const HOUSEHOLD_CATEGORIES = [
   'household',

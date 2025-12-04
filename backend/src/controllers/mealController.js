@@ -48,7 +48,7 @@ const imageSchema = z
     z
       .string()
       .regex(/^data:/)
-      .refine((value) => value.length < 1_000_000, 'Embedded images must be under 1MB'),
+      .refine((value) => value.length < 5_000_000, 'Embedded images must be under 5MB'),
     z.literal(''),
     z.null(),
     z.undefined(),
@@ -59,9 +59,25 @@ const imageSchema = z
   });
 
 const preferenceSchema = z
-  .array(z.enum(MEAL_PREFERENCES))
-  .min(1)
-  .transform((prefs) => Array.from(new Set(prefs)));
+  .any()
+  .transform((value) => {
+    const collected = [];
+    const flatten = (v) => {
+      if (Array.isArray(v)) {
+        v.forEach(flatten);
+      } else if (v !== null && v !== undefined && v !== '') {
+        collected.push(String(v));
+      }
+    };
+    flatten(value || []);
+    return Array.from(new Set(collected.map((v) => v.trim().toLowerCase()).filter(Boolean)));
+  })
+  .refine(
+    (prefs) => prefs.every((p) => MEAL_PREFERENCES.includes(p)),
+    `Invalid option: expected one of ${MEAL_PREFERENCES.join('|')}`,
+  )
+  .optional()
+  .default([]);
 
 const urlOrEmptySchema = z
   .union([z.string().url(), z.literal(''), z.null(), z.undefined()])
@@ -70,19 +86,25 @@ const urlOrEmptySchema = z
     return value;
   });
 
-const attachmentItemSchema = z
-  .string()
-  .regex(/^data:/)
-  .refine((value) => value.length < 2_000_000, 'Attachments must be under 2MB');
+const attachmentItemSchema = z.union([
+  z
+    .object({
+      name: z.string().optional(),
+      data: z
+        .string()
+        .regex(/^data:/)
+        .refine((val) => val.length < 5_000_000, 'Attachments must be under 5MB'),
+    })
+    .transform((item) => ({ name: item.name?.trim() || '', data: item.data })),
+  z
+    .string()
+    .regex(/^data:/)
+    .refine((value) => value.length < 5_000_000, 'Attachments must be under 5MB')
+    .transform((value) => ({ name: '', data: value })),
+]);
 
 const attachmentSchema = z
-  .union([
-    z.array(attachmentItemSchema),
-    attachmentItemSchema,
-    z.literal(''),
-    z.null(),
-    z.undefined(),
-  ])
+  .union([z.array(attachmentItemSchema), attachmentItemSchema, z.literal(''), z.null(), z.undefined()])
   .transform((value) => {
     if (!value || value === '') return [];
     if (Array.isArray(value)) return value;
@@ -129,10 +151,36 @@ const listMeals = async (req, res) => {
       ],
     });
 
-    return res.json({ meals });
+    const serialized = meals.map((meal) => serializeMeal(meal));
+    return res.json({ meals: serialized });
   } catch (error) {
     return res.status(500).json({ message: 'Unable to load meals', detail: error.message });
   }
+};
+
+const parseAttachmentsForResponse = (attachments) =>
+  (attachments || []).map((raw, index) => {
+    if (!raw) return null;
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (parsed?.data) {
+        return { name: parsed.name || `Attachment ${index + 1}`, data: parsed.data };
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    if (typeof raw === 'string') {
+      return { name: `Attachment ${index + 1}`, data: raw };
+    }
+    return null;
+  }).filter(Boolean);
+
+const serializeMeal = (meal) => {
+  const json = meal.toJSON ? meal.toJSON() : meal;
+  return {
+    ...json,
+    recipeAttachment: parseAttachmentsForResponse(json.recipeAttachment),
+  };
 };
 
 const createMeal = async (req, res) => {
@@ -146,7 +194,9 @@ const createMeal = async (req, res) => {
           servings: payload.servings,
           preference: payload.preference,
           recipeLink: payload.recipeLink,
-          recipeAttachment: payload.recipeAttachment,
+          recipeAttachment: payload.recipeAttachment.map((item) =>
+            JSON.stringify({ name: item.name, data: item.data }),
+          ),
           notes: payload.notes,
           imageUrl: payload.imageUrl,
           userId: req.user.id,
@@ -194,7 +244,8 @@ const createMeal = async (req, res) => {
       ],
     });
 
-    return res.status(201).json({ meal: withIngredients });
+    const serialized = serializeMeal(withIngredients);
+    return res.status(201).json({ meal: serialized });
   } catch (error) {
     return res.status(400).json({ message: error.message });
   }
@@ -216,7 +267,9 @@ const updateMeal = async (req, res) => {
         servings: parsed.servings,
         preference: parsed.preference,
         recipeLink: parsed.recipeLink,
-        recipeAttachment: parsed.recipeAttachment,
+        recipeAttachment: parsed.recipeAttachment.map((item) =>
+          JSON.stringify({ name: item.name, data: item.data }),
+        ),
         notes: parsed.notes,
         imageUrl: parsed.imageUrl,
       });
@@ -262,7 +315,8 @@ const updateMeal = async (req, res) => {
       ],
     });
 
-    return res.json({ meal: updated });
+    const serialized = serializeMeal(updated);
+    return res.json({ meal: serialized });
   } catch (error) {
     return res.status(400).json({ message: error.message });
   }

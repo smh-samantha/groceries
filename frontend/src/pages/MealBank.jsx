@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import MealCard from '../components/MealCard';
 import { apiClient } from '../services/apiClient';
 
@@ -9,8 +9,9 @@ const preferenceOptions = [
   { label: 'Dinner', value: 'dinner' },
   { label: 'Snack', value: 'snack' },
   { label: 'Slow cooker', value: 'slow_cooker' },
-  { label: 'For freezing', value: 'freezer' },
+  { label: 'Freezer', value: 'freezer' },
   { label: 'Baby', value: 'baby' },
+  { label: 'Dessert', value: 'dessert' },
 ];
 
 const unitOptions = [
@@ -22,13 +23,14 @@ const unitOptions = [
   { label: 'Litres', value: 'l' },
   { label: 'Grams', value: 'g' },
   { label: 'Kilograms', value: 'kg' },
+  { label: 'With love', value: 'with_love' },
 ];
 
 const blankIngredient = { name: '', amount: '', unit: 'unit', category: 'produce' };
 const createInitialForm = () => ({
   name: '',
   servings: 2,
-  preference: ['dinner'],
+  preference: [],
   notes: '',
   imageUrl: '',
   recipeLink: '',
@@ -44,6 +46,22 @@ const MealBank = ({ meals, onRefresh, user }) => {
   const [error, setError] = useState('');
   const [formState, setFormState] = useState(createInitialForm());
   const [editingMealId, setEditingMealId] = useState(null);
+  const [showGuide, setShowGuide] = useState(false);
+  const [expandedRows, setExpandedRows] = useState(new Set());
+  const [columns, setColumns] = useState(3);
+
+  useEffect(() => {
+    const computeColumns = () => {
+      const width = window.innerWidth;
+      if (width <= 700) return 1;
+      if (width <= 1200) return 2;
+      return 3;
+    };
+    const handler = () => setColumns(computeColumns());
+    handler();
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   const filteredMeals = useMemo(() => {
     return meals
@@ -93,14 +111,17 @@ const MealBank = ({ meals, onRefresh, user }) => {
       (file) =>
         new Promise((resolve) => {
           const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
+          reader.onloadend = () => resolve({ name: file.name, data: reader.result });
           reader.readAsDataURL(file);
         }),
     );
     const results = await Promise.all(readers);
     setFormState((prev) => ({
       ...prev,
-      recipeAttachment: [...prev.recipeAttachment, ...results.filter(Boolean)],
+      recipeAttachment: [
+        ...prev.recipeAttachment,
+        ...results.filter((item) => item && item.data),
+      ],
     }));
   };
 
@@ -110,7 +131,10 @@ const MealBank = ({ meals, onRefresh, user }) => {
     const payload = {
       ...formState,
       preference: formState.preference.filter(Boolean),
-      recipeAttachment: formState.recipeAttachment || [],
+      recipeAttachment: (formState.recipeAttachment || []).map((item, index) => ({
+        name: item?.name || `Attachment ${index + 1}`,
+        data: item?.data || item,
+      })),
       ingredients: formState.ingredients
         .filter((item) => item.name.trim())
         .map((item) => ({
@@ -127,11 +151,6 @@ const MealBank = ({ meals, onRefresh, user }) => {
 
     if (!payload.name.trim() || payload.ingredients.length === 0) {
       setError('Provide a meal name and at least one ingredient.');
-      return;
-    }
-
-    if (!payload.preference || payload.preference.length === 0) {
-      setError('Select at least one meal type.');
       return;
     }
 
@@ -167,11 +186,14 @@ const MealBank = ({ meals, onRefresh, user }) => {
     setFormState({
       name: meal.name,
       servings: meal.servings || 1,
-      preference: Array.isArray(meal.preference) ? meal.preference : [meal.preference],
+      preference: Array.isArray(meal.preference) ? meal.preference : [],
       notes: meal.notes || '',
       imageUrl: meal.imageUrl || '',
       recipeLink: meal.recipeLink || '',
-      recipeAttachment: meal.recipeAttachment || [],
+      recipeAttachment: (meal.recipeAttachment || []).map((item, index) => ({
+        name: item?.name || `Attachment ${index + 1}`,
+        data: item?.data || item,
+      })),
       ingredients:
         meal.ingredients?.map((item) => ({
           name: item.name,
@@ -192,10 +214,82 @@ const MealBank = ({ meals, onRefresh, user }) => {
     }
   };
 
+  const handleUpdateAttachments = async (mealId, attachments) => {
+    const target = meals.find((m) => m.id === mealId);
+    if (!target) throw new Error('Meal not found');
+    const payload = {
+      name: target.name,
+      servings: target.servings || 1,
+      preference: Array.isArray(target.preference) ? target.preference : [],
+      notes: target.notes || '',
+      imageUrl: target.imageUrl || '',
+      recipeLink: target.recipeLink || '',
+      recipeAttachment: (attachments || []).map((item, index) => ({
+        name: item?.name || `Attachment ${index + 1}`,
+        data: item?.data || item,
+      })),
+      ingredients: (target.ingredients || []).map((item) => ({
+        name: item.name,
+        amount: item.MealIngredient?.quantityValue ?? null,
+        unit: item.MealIngredient?.quantityUnit || 'unit',
+        category: item.category || 'produce',
+      })),
+    };
+    await apiClient.updateMeal(user, mealId, payload);
+    await onRefresh();
+  };
+
   return (
     <section className="page">
-      <header className="page-header">
-        <p className="eyebrow">Meal Bank</p>
+      <div className="page-head-group">
+        <header className="page-header">
+          <p className="eyebrow">Meal Bank</p>
+        </header>
+
+        <div className="info-card guide-card">
+          <button
+            type="button"
+            className="collapsible-header"
+            onClick={() => setShowGuide((open) => !open)}
+            aria-expanded={showGuide}
+          >
+            <span>Dashboard guide</span>
+            <span className="collapsible-arrow">{showGuide ? '▾' : '▸'}</span>
+          </button>
+          {showGuide && (
+            <div className="collapsible-body">
+              <p className="lead">
+                Bank your meals, attach recipes and ingredients, and pull them into rotations without
+                rebuilding the details.
+              </p>
+              <ul>
+                <li>Filter by meal type or search by name to find an existing meal.</li>
+                <li>Add or edit a meal with servings, notes, links, and file attachments.</li>
+                <li>
+                  Each ingredient needs a name and amount/unit to save; add multiple rows as needed.
+                </li>
+                <li>Use the rotation page to drop saved meals into weekly plans.</li>
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="filters stretch with-action">
+        <div className="filters-group">
+          <input
+            placeholder="Search meals"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <select value={preferenceFilter} onChange={(e) => setPreferenceFilter(e.target.value)}>
+            {preferenceOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={() => {
             setShowForm((prev) => {
@@ -211,7 +305,7 @@ const MealBank = ({ meals, onRefresh, user }) => {
         >
           {showForm ? 'Close form' : 'Add meal'}
         </button>
-      </header>
+      </div>
 
       {showForm && (
         <form className="card form-card" onSubmit={handleSubmit}>
@@ -288,7 +382,11 @@ const MealBank = ({ meals, onRefresh, user }) => {
                 )}
               </div>
               <div className="dropzone">
-                <input type="file" accept="image/*" onChange={handleImageFile} />
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/*"
+                  onChange={handleImageFile}
+                />
               </div>
               {formState.imageUrl && (
                 <img src={formState.imageUrl} alt="Meal preview" className="image-preview" />
@@ -322,14 +420,14 @@ const MealBank = ({ meals, onRefresh, user }) => {
               )}
             </div>
             <label className="upload-card wide">
-              <div className="dropzone">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,application/pdf"
-                  onChange={handleRecipeAttachment}
-                />
-              </div>
+                <div className="dropzone">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/*,application/pdf"
+                    onChange={handleRecipeAttachment}
+                  />
+                </div>
               {formState.recipeAttachment?.length > 0 && (
                 <p className="muted small-label">
                   {formState.recipeAttachment.length} file(s) ready to save
@@ -416,33 +514,35 @@ const MealBank = ({ meals, onRefresh, user }) => {
           </div>
         </form>
       )}
-      <div className="filters stretch">
-        <input
-          placeholder="Search meals"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <select value={preferenceFilter} onChange={(e) => setPreferenceFilter(e.target.value)}>
-          {preferenceOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
       <div className="grid gallery">
-        {filteredMeals.map((meal) => (
+        {filteredMeals.map((meal, index) => {
+          const rowIndex = Math.floor(index / columns);
+          const isOpen = expandedRows.has(rowIndex);
+          return (
           <MealCard
             key={meal.id}
             meal={meal}
+            open={isOpen}
+            onToggle={() =>
+              setExpandedRows((prev) => {
+                const next = new Set(prev);
+                if (next.has(rowIndex)) {
+                  next.delete(rowIndex);
+                } else {
+                  next.add(rowIndex);
+                }
+                return next;
+              })
+            }
+            onUpdateAttachments={(attachments) => handleUpdateAttachments(meal.id, attachments)}
             onEdit={() => {
               handleEditMeal(meal);
               scrollToForm();
             }}
             onDelete={() => handleDeleteMeal(meal.id)}
           />
-        ))}
+        );
+        })}
         {filteredMeals.length === 0 && (
           <div className="empty-state">No meals match that search just yet.</div>
         )}

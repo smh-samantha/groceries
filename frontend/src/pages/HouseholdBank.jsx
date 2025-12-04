@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import HouseholdCard from '../components/HouseholdCard';
 import { apiClient } from '../services/apiClient';
 
@@ -39,6 +39,22 @@ const HouseholdBank = ({ items, onRefresh, user }) => {
   const [error, setError] = useState('');
   const [formState, setFormState] = useState(createInitialForm());
   const [editingItemId, setEditingItemId] = useState(null);
+  const [showGuide, setShowGuide] = useState(false);
+  const [expandedRows, setExpandedRows] = useState(new Set());
+  const [columns, setColumns] = useState(3);
+
+  useEffect(() => {
+    const computeColumns = () => {
+      const width = window.innerWidth;
+      if (width <= 700) return 1;
+      if (width <= 1200) return 2;
+      return 3;
+    };
+    const handler = () => setColumns(computeColumns());
+    handler();
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) =>
@@ -171,8 +187,48 @@ const HouseholdBank = ({ items, onRefresh, user }) => {
 
   return (
     <section className="page">
-      <header className="page-header">
-        <p className="eyebrow">Household Bank</p>
+      <div className="page-head-group">
+        <header className="page-header">
+          <p className="eyebrow">Household Bank</p>
+        </header>
+
+        <div className="info-card guide-card">
+          <button
+            type="button"
+            className="collapsible-header"
+            onClick={() => setShowGuide((open) => !open)}
+            aria-expanded={showGuide}
+          >
+            <span>Dashboard guide</span>
+            <span className="collapsible-arrow">{showGuide ? '▾' : '▸'}</span>
+          </button>
+          {showGuide && (
+            <div className="collapsible-body">
+              <p className="lead">
+                Store household staples, group them, and decide which ones flow into every grocery
+                list by default.
+              </p>
+              <ul>
+                <li>
+                  Search or browse groups; toggle “Include in grocery list” to auto-add the items.
+                </li>
+                <li>Add groups with notes and multiple items, each with an amount/unit if needed.</li>
+                <li>Edit or remove items inside a group; updates sync to the grocery list totals.</li>
+                <li>Use grocery list filters to combine these with your rotation meals.</li>
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="filters stretch with-action">
+        <div className="filters-group">
+          <input
+            placeholder="Search household groups"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
         <button
           onClick={() => {
             setShowForm((prev) => {
@@ -188,7 +244,7 @@ const HouseholdBank = ({ items, onRefresh, user }) => {
         >
           {showForm ? 'Close form' : 'Add group'}
         </button>
-      </header>
+      </div>
 
       {showForm && (
         <form className="card form-card" onSubmit={handleSubmit}>
@@ -215,17 +271,6 @@ const HouseholdBank = ({ items, onRefresh, user }) => {
               </select>
             </label>
           </div>
-
-          <label className="checkbox-inline">
-            <input
-              type="checkbox"
-              checked={formState.includeInGroceryList}
-              onChange={(e) =>
-                setFormState((prev) => ({ ...prev, includeInGroceryList: e.target.checked }))
-              }
-            />
-            <span>Include by default on each grocery list</span>
-          </label>
 
           <label>
             Notes
@@ -291,24 +336,32 @@ const HouseholdBank = ({ items, onRefresh, user }) => {
         </form>
       )}
 
-      <div className="filters stretch">
-        <input
-          placeholder="Search household groups"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-
       <div className="grid gallery">
-        {filteredItems.map((group) => (
+        {filteredItems.map((group, index) => {
+          const rowIndex = Math.floor(index / columns);
+          const isOpen = expandedRows.has(rowIndex);
+          return (
           <HouseholdCard
             key={group.id}
             group={group}
+            open={isOpen}
+            onToggle={() =>
+              setExpandedRows((prev) => {
+                const next = new Set(prev);
+                if (next.has(rowIndex)) {
+                  next.delete(rowIndex);
+                } else {
+                  next.add(rowIndex);
+                }
+                return next;
+              })
+            }
             onEdit={() => handleEdit(group)}
             onDelete={() => handleDelete(group.id)}
             onToggleInclude={() => handleToggleInclude(group)}
           />
-        ))}
+        );
+        })}
         {filteredItems.length === 0 && (
           <div className="empty-state">No household items yet. Add your staples.</div>
         )}

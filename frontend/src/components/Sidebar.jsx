@@ -3,12 +3,14 @@ import mealIcon from '../assets/icon-meal.svg';
 import householdIcon from '../assets/icon-household.svg';
 import rotationIcon from '../assets/icon-rotation.svg';
 import groceryIcon from '../assets/icon-grocery.svg';
+import friendIcon from '../assets/icon-friend.svg';
 
 const navItems = [
   { key: 'meals', label: 'Meal Bank', icon: mealIcon },
   { key: 'household', label: 'Household Bank', icon: householdIcon },
   { key: 'rotation', label: 'Rotation', icon: rotationIcon },
   { key: 'groceries', label: 'Groceries', icon: groceryIcon },
+  { key: 'friends', label: 'Friends', icon: friendIcon },
 ];
 
 const Sidebar = ({

@@ -5,6 +5,7 @@ import MealBank from './pages/MealBank';
 import HouseholdBank from './pages/HouseholdBank';
 import Rotation from './pages/Rotation';
 import GroceryList from './pages/GroceryList';
+import Friends from './pages/Friends';
 import { apiClient } from './services/apiClient';
 import './App.css';
 
@@ -99,6 +100,17 @@ const App = () => {
     }
     if (activePage === 'household') {
       return <HouseholdBank user={user} items={householdItems} onRefresh={fetchHouseholdItems} />;
+    }
+    if (activePage === 'friends') {
+      return (
+        <Friends
+          user={user}
+          meals={meals}
+          householdItems={householdItems}
+          onRefreshMeals={fetchMeals}
+          onRefreshHousehold={fetchHouseholdItems}
+        />
+      );
     }
     return <MealBank user={user} meals={meals} onRefresh={fetchMeals} />;
   }, [activePage, user, meals, householdItems, fetchMeals, fetchHouseholdItems]);

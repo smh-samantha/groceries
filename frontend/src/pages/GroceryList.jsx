@@ -4,6 +4,7 @@ import { apiClient } from '../services/apiClient';
 const ALL_WEEKS = [1, 2, 3, 4];
 
 const formatCategory = (value) => value.replace(/_/g, ' ');
+const capitalize = (value = '') => value.charAt(0).toUpperCase() + value.slice(1);
 
 const GroceryList = ({ user }) => {
   const [selectedWeeks, setSelectedWeeks] = useState([1]);
@@ -13,6 +14,7 @@ const GroceryList = ({ user }) => {
   const [checkedItems, setCheckedItems] = useState(new Set());
   const [exportPreview, setExportPreview] = useState('');
   const [showOnlyPending, setShowOnlyPending] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const toggleWeek = (week) => {
     setSelectedWeeks((prev) => {
@@ -32,8 +34,12 @@ const GroceryList = ({ user }) => {
       const data = await apiClient.getGroceryList(user, {
         weeks: selectedWeeks.join(','),
       });
-      setList(data.items || {});
-      setCheckedItems(new Set());
+      const itemsByCategory = data.items || {};
+      setList(itemsByCategory);
+      const checkedKeys = Object.values(itemsByCategory).flatMap((items) =>
+        items.filter((item) => item.checked).map((item) => item.itemKey),
+      );
+      setCheckedItems(new Set(checkedKeys));
     } catch (err) {
       setError(err.message || 'Unable to load grocery list');
     } finally {
@@ -56,20 +62,37 @@ const GroceryList = ({ user }) => {
     return rows;
   }, [list]);
 
-  const toggleItem = (name) => {
+  const toggleItem = async (itemKey) => {
+    setError('');
+    const willCheck = !checkedItems.has(itemKey);
     setCheckedItems((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
+      if (willCheck) {
+        next.add(itemKey);
       } else {
-        next.add(name);
+        next.delete(itemKey);
       }
       return next;
     });
+
+    try {
+      await apiClient.setGroceryCheck(user, { itemKey, checked: willCheck });
+    } catch (err) {
+      setError(err.message || 'Unable to update grocery item');
+      setCheckedItems((prev) => {
+        const next = new Set(prev);
+        if (willCheck) {
+          next.delete(itemKey);
+        } else {
+          next.add(itemKey);
+        }
+        return next;
+      });
+    }
   };
 
   const handleExport = () => {
-    const remaining = flatList.filter((item) => !checkedItems.has(item.name));
+    const remaining = flatList.filter((item) => !checkedItems.has(item.itemKey));
     const text = remaining
       .map(
         (item) => `${item.name} – ${item.combinedQuantity} – meals: ${item.meals.join(', ')}`,
@@ -78,29 +101,63 @@ const GroceryList = ({ user }) => {
     setExportPreview(text || 'All ingredients already ticked off.');
   };
 
+  const handleRefresh = async () => {
+    setError('');
+    setCheckedItems(new Set());
+    try {
+      await apiClient.clearGroceryChecks(user);
+      await fetchList();
+    } catch (err) {
+      setError(err.message || 'Unable to refresh grocery list');
+    }
+  };
+
   return (
     <section className="page">
-      <header className="page-header column">
-        <p className="eyebrow">Grocery List</p>
-        <p className="lead">
-          Select which weeks youd like included in your grocery list. (You might have a 4 week rotation but only be getting groceries for the next 1 or 2 weeks.), and export the rest directly into your Woolies list.
-          Tick off ingredients you already own and then you can export remaining items or only show unchecked items and take the list to the grocery store.
-        </p>
-        <button onClick={handleExport}>Export remaining items</button>
-      </header>
+      <div className="page-head-group">
+        <header className="page-header column">
+          <p className="eyebrow">Grocery List</p>
+        </header>
 
-      <div className="info-card grocery-guide">
-        <h4>How this list behaves</h4>
-        <ul>
-          <li>Select weeks to pull ingredients from those rotations only.</li>
-          <li>
-            Check items you already have; we keep an export-ready preview of whatever remains.
-          </li>
-          <li>
-            Totals reflect serving changes from the Rotation page, and each row shows the meals it
-            powers.
-          </li>
-        </ul>
+        <div className="info-card grocery-guide guide-card">
+          <button
+            type="button"
+            className="collapsible-header"
+            onClick={() => setShowGuide((open) => !open)}
+            aria-expanded={showGuide}
+          >
+            <span>Dashboard guide</span>
+            <span className="collapsible-arrow">{showGuide ? '▾' : '▸'}</span>
+          </button>
+          {showGuide && (
+            <div className="collapsible-body">
+              <p className="lead">
+                Select which weeks youd like included in your grocery list. (You might have a 4 week
+                rotation but only be getting groceries for the next 1 or 2 weeks.), and export the
+                rest directly into your Woolies list. Tick off ingredients you already own and then you
+                can export remaining items or only show unchecked items and take the list to the
+                grocery store.
+              </p>
+              <ul>
+                <li>Select weeks to pull ingredients from those rotations only.</li>
+                <li>
+                  Check items you already have; we keep an export-ready preview of whatever remains.
+                </li>
+                <li>
+                  Totals reflect serving changes from the Rotation page, and each row shows the meals it
+                  powers.
+                </li>
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="action-row">
+        <button onClick={handleExport}>Export remaining items</button>
+        <button className="ghost" type="button" onClick={handleRefresh} disabled={loading}>
+          Refresh list
+        </button>
       </div>
 
       <div className="filters weeks-filter">
@@ -139,18 +196,21 @@ const GroceryList = ({ user }) => {
             <div className="grocery-category" key={category}>
               <h3 className="category-title">{formatCategory(category)}</h3>
               {items
-                .filter((item) => (showOnlyPending ? !checkedItems.has(item.name) : true))
+                .filter((item) => (showOnlyPending ? !checkedItems.has(item.itemKey) : true))
                 .map((item) => (
-                  <label key={`${category}-${item.name}`} className="grocery-row">
+                  <label
+                    key={`${category}-${item.name}`}
+                    className={`grocery-row ${checkedItems.has(item.itemKey) ? 'checked' : ''}`}
+                  >
                     <span className="checkbox-wrap">
                       <input
                         type="checkbox"
-                        checked={checkedItems.has(item.name)}
-                        onChange={() => toggleItem(item.name)}
+                        checked={checkedItems.has(item.itemKey)}
+                        onChange={() => toggleItem(item.itemKey)}
                       />
                     </span>
                     <div>
-                      <p>{item.name}</p>
+                      <p>{capitalize(item.name)}</p>
                       <p className="muted small-label">
                         {item.combinedQuantity} • {item.meals.join(', ')}
                       </p>

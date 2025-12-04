@@ -7,6 +7,9 @@ const RotationEntry = require('./RotationEntry');
 const HouseholdItem = require('./HouseholdItem');
 const HouseholdGroup = require('./HouseholdGroup');
 const HouseholdGroupItem = require('./HouseholdGroupItem');
+const GroceryCheck = require('./GroceryCheck');
+const Friend = require('./Friend');
+const Share = require('./Share');
 
 // User relationships
 User.hasOne(RotationConfig, { foreignKey: 'userId', as: 'rotationConfig' });
@@ -26,6 +29,25 @@ HouseholdItem.belongsTo(User, { foreignKey: 'userId', as: 'owner' });
 
 User.hasMany(HouseholdGroup, { foreignKey: 'userId', as: 'householdGroups' });
 HouseholdGroup.belongsTo(User, { foreignKey: 'userId', as: 'owner' });
+
+User.hasMany(GroceryCheck, { foreignKey: 'userId', as: 'groceryChecks' });
+GroceryCheck.belongsTo(User, { foreignKey: 'userId', as: 'owner' });
+
+User.belongsToMany(User, {
+  through: Friend,
+  as: 'friends',
+  foreignKey: 'userId',
+  otherKey: 'friendUserId',
+});
+Friend.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+Friend.belongsTo(User, { foreignKey: 'friendUserId', as: 'friend' });
+
+User.hasMany(Share, { foreignKey: 'fromUserId', as: 'sentShares' });
+User.hasMany(Share, { foreignKey: 'toUserId', as: 'receivedShares' });
+Share.belongsTo(User, { foreignKey: 'fromUserId', as: 'fromUser' });
+Share.belongsTo(User, { foreignKey: 'toUserId', as: 'toUser' });
+Share.belongsTo(Meal, { foreignKey: 'mealId', as: 'meal' });
+Share.belongsTo(HouseholdGroup, { foreignKey: 'householdGroupId', as: 'householdGroup' });
 
 HouseholdGroup.belongsToMany(HouseholdItem, {
   through: HouseholdGroupItem,
@@ -63,4 +85,7 @@ module.exports = {
   HouseholdItem,
   HouseholdGroup,
   HouseholdGroupItem,
+  GroceryCheck,
+  Friend,
+  Share,
 };

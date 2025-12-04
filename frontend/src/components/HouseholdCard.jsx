@@ -10,12 +10,14 @@ const formatQuantity = (value, unit) => {
 
 const labelFromCategory = (category) => category.replace(/_/g, ' ');
 
-const HouseholdCard = ({ group, onEdit, onDelete, onToggleInclude }) => {
-  const [open, setOpen] = useState(false);
-  const toggle = () => setOpen((prev) => !prev);
+const HouseholdCard = ({ group, onEdit, onDelete, onToggleInclude, open, onToggle }) => {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const openState = isControlled ? open : internalOpen;
+  const toggle = onToggle || (() => setInternalOpen((prev) => !prev));
 
   return (
-    <div className={`card meal-card ${open ? 'open' : ''}`}>
+    <div className={`card meal-card ${openState ? 'open' : ''}`}>
       <button type="button" className="meal-card-toggle" onClick={toggle}>
         <div>
           <p className="eyebrow">{labelFromCategory(group.category)}</p>
@@ -23,7 +25,7 @@ const HouseholdCard = ({ group, onEdit, onDelete, onToggleInclude }) => {
         </div>
         <div className="meal-meta">
           <span>{group.items?.length || 0} items</span>
-          <span className={`chevron ${open ? 'up' : 'down'}`} />
+          <span className={`chevron ${openState ? 'up' : 'down'}`} />
         </div>
       </button>
       {(onEdit || onDelete || onToggleInclude) && (
@@ -45,7 +47,7 @@ const HouseholdCard = ({ group, onEdit, onDelete, onToggleInclude }) => {
           )}
         </div>
       )}
-      {open && (
+      {openState && (
         <div className="meal-details">
           {group.notes && <p className="notes">{group.notes}</p>}
           <div className="ingredients-block">
