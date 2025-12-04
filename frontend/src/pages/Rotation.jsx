@@ -27,8 +27,14 @@ const Rotation = ({ user, meals }) => {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selection, setSelection] = useState({});
+  const [searchTerms, setSearchTerms] = useState({});
   const [servingDrafts, setServingDrafts] = useState({});
+  const [showGuide, setShowGuide] = useState(false);
+
+  const sortedMeals = useMemo(
+    () => [...(meals || [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [meals],
+  );
 
   const groupedEntries = useMemo(() => {
     const result = { 1: [], 2: [], 3: [], 4: [] };
@@ -65,7 +71,7 @@ const Rotation = ({ user, meals }) => {
   const handleTimeframeChange = async (value) => {
     try {
       await apiClient.updateRotationConfig(user, { timeframeWeeks: Number(value) });
-      setSelection({});
+      setSearchTerms({});
       await loadRotation();
     } catch (err) {
       setError(err.message || 'Unable to update timeframe');
@@ -79,7 +85,7 @@ const Rotation = ({ user, meals }) => {
         weekNumber,
         mealId: Number(mealId),
       });
-      setSelection((prev) => ({ ...prev, [weekNumber]: '' }));
+      setSearchTerms((prev) => ({ ...prev, [weekNumber]: '' }));
       await loadRotation();
     } catch (err) {
       setError(err.message || 'Unable to add meal');
@@ -119,21 +125,38 @@ const Rotation = ({ user, meals }) => {
 
   return (
     <section className="page">
-      <header className="page-header column">
-        <p className="eyebrow">Rotation</p>
-        <p className="lead">
-          Pick a timeframe for a rotation, add meals into each week, and resize servings when plans change. Every
-          tweak feeds straight into the grocery list.
-        </p>
-      </header>
+      <div className="page-head-group">
+        <header className="page-header column">
+          <p className="eyebrow">Rotation</p>
+        </header>
 
-      <div className="info-grid">
-        {rotationGuide.map((card) => (
-          <article className="info-card" key={card.title}>
-            <h4>{card.title}</h4>
-            <p>{card.body}</p>
-          </article>
-        ))}
+        <div className="info-card guide-card">
+          <button
+            type="button"
+            className="collapsible-header"
+            onClick={() => setShowGuide((open) => !open)}
+            aria-expanded={showGuide}
+          >
+            <span>Dashboard guide</span>
+            <span className="collapsible-arrow">{showGuide ? '▾' : '▸'}</span>
+          </button>
+          {showGuide && (
+            <div className="collapsible-body">
+              <p className="lead">
+                Pick a timeframe for a rotation, add meals into each week, and resize servings when
+                plans change. Every tweak feeds straight into the grocery list.
+              </p>
+              <div className="info-grid">
+                {rotationGuide.map((card) => (
+                  <article className="info-card inset" key={card.title}>
+                    <h4>{card.title}</h4>
+                    <p>{card.body}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="filters tight">
@@ -155,29 +178,46 @@ const Rotation = ({ user, meals }) => {
       {error && <p className="error">{error}</p>}
       {loading && <div className="loading">Loading rotation…</div>}
 
-      <div className="weeks-grid">
+      <div className={`weeks-grid weeks-${config.timeframeWeeks || 1}`}>
         {Array.from({ length: config.timeframeWeeks || 1 }).map((_, index) => {
           const weekNumber = index + 1;
           const weekEntries = groupedEntries[weekNumber] || [];
+          const query = (searchTerms[weekNumber] || '').trim().toLowerCase();
+          const filteredMeals =
+            query === ''
+              ? []
+              : sortedMeals.filter((meal) => meal.name.toLowerCase().includes(query));
           return (
             <div className="card week-card" key={`week-${weekNumber}`}>
               <div className="week-header">
                 <h3>Week {weekNumber}</h3>
-                <select
-                  value={selection[weekNumber] || ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setSelection((prev) => ({ ...prev, [weekNumber]: value }));
-                    handleAddMeal(weekNumber, value);
-                  }}
-                >
-                  <option value="">Add meal…</option>
-                  {meals.map((meal) => (
-                    <option key={meal.id} value={meal.id}>
-                      {meal.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="meal-search">
+                  <input
+                    type="text"
+                    placeholder="Search meals..."
+                    value={searchTerms[weekNumber] || ''}
+                    onChange={(e) =>
+                      setSearchTerms((prev) => ({ ...prev, [weekNumber]: e.target.value }))
+                    }
+                  />
+                  {query !== '' && (
+                    <div className="meal-suggestions overlay">
+                      {filteredMeals.length === 0 && (
+                        <p className="muted small-label">No meals match that search.</p>
+                      )}
+                      {filteredMeals.map((meal) => (
+                        <button
+                          key={meal.id}
+                          type="button"
+                          className="ghost small"
+                          onClick={() => handleAddMeal(weekNumber, meal.id)}
+                        >
+                          {meal.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="week-body">
                 {weekEntries.length === 0 && (

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import MealCard from '../components/MealCard';
 import { apiClient } from '../services/apiClient';
 
@@ -8,6 +8,10 @@ const preferenceOptions = [
   { label: 'Lunch', value: 'lunch' },
   { label: 'Dinner', value: 'dinner' },
   { label: 'Snack', value: 'snack' },
+  { label: 'Slow cooker', value: 'slow_cooker' },
+  { label: 'Freezer', value: 'freezer' },
+  { label: 'Baby', value: 'baby' },
+  { label: 'Dessert', value: 'dessert' },
 ];
 
 const unitOptions = [
@@ -19,15 +23,18 @@ const unitOptions = [
   { label: 'Litres', value: 'l' },
   { label: 'Grams', value: 'g' },
   { label: 'Kilograms', value: 'kg' },
+  { label: 'With love', value: 'with_love' },
 ];
 
 const blankIngredient = { name: '', amount: '', unit: 'unit', category: 'produce' };
 const createInitialForm = () => ({
   name: '',
   servings: 2,
-  preference: 'breakfast',
+  preference: [],
   notes: '',
   imageUrl: '',
+  recipeLink: '',
+  recipeAttachment: [],
   ingredients: [{ ...blankIngredient }],
 });
 
@@ -39,11 +46,29 @@ const MealBank = ({ meals, onRefresh, user }) => {
   const [error, setError] = useState('');
   const [formState, setFormState] = useState(createInitialForm());
   const [editingMealId, setEditingMealId] = useState(null);
+  const [showGuide, setShowGuide] = useState(false);
+  const [expandedRows, setExpandedRows] = useState(new Set());
+  const [columns, setColumns] = useState(3);
+
+  useEffect(() => {
+    const computeColumns = () => {
+      const width = window.innerWidth;
+      if (width <= 700) return 1;
+      if (width <= 1200) return 2;
+      return 3;
+    };
+    const handler = () => setColumns(computeColumns());
+    handler();
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   const filteredMeals = useMemo(() => {
     return meals
       .filter((meal) =>
-        preferenceFilter === 'all' ? true : meal.preference === preferenceFilter,
+        preferenceFilter === 'all'
+          ? true
+          : Array.isArray(meal.preference) && meal.preference.includes(preferenceFilter),
       )
       .filter((meal) => meal.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [meals, preferenceFilter, searchTerm]);
@@ -79,11 +104,37 @@ const MealBank = ({ meals, onRefresh, user }) => {
     reader.readAsDataURL(file);
   };
 
+  const handleRecipeAttachment = async (event) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    const readers = Array.from(files).map(
+      (file) =>
+        new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve({ name: file.name, data: reader.result });
+          reader.readAsDataURL(file);
+        }),
+    );
+    const results = await Promise.all(readers);
+    setFormState((prev) => ({
+      ...prev,
+      recipeAttachment: [
+        ...prev.recipeAttachment,
+        ...results.filter((item) => item && item.data),
+      ],
+    }));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     const payload = {
       ...formState,
+      preference: formState.preference.filter(Boolean),
+      recipeAttachment: (formState.recipeAttachment || []).map((item, index) => ({
+        name: item?.name || `Attachment ${index + 1}`,
+        data: item?.data || item,
+      })),
       ingredients: formState.ingredients
         .filter((item) => item.name.trim())
         .map((item) => ({
@@ -135,9 +186,14 @@ const MealBank = ({ meals, onRefresh, user }) => {
     setFormState({
       name: meal.name,
       servings: meal.servings || 1,
-      preference: meal.preference,
+      preference: Array.isArray(meal.preference) ? meal.preference : [],
       notes: meal.notes || '',
       imageUrl: meal.imageUrl || '',
+      recipeLink: meal.recipeLink || '',
+      recipeAttachment: (meal.recipeAttachment || []).map((item, index) => ({
+        name: item?.name || `Attachment ${index + 1}`,
+        data: item?.data || item,
+      })),
       ingredients:
         meal.ingredients?.map((item) => ({
           name: item.name,
@@ -158,10 +214,82 @@ const MealBank = ({ meals, onRefresh, user }) => {
     }
   };
 
+  const handleUpdateAttachments = async (mealId, attachments) => {
+    const target = meals.find((m) => m.id === mealId);
+    if (!target) throw new Error('Meal not found');
+    const payload = {
+      name: target.name,
+      servings: target.servings || 1,
+      preference: Array.isArray(target.preference) ? target.preference : [],
+      notes: target.notes || '',
+      imageUrl: target.imageUrl || '',
+      recipeLink: target.recipeLink || '',
+      recipeAttachment: (attachments || []).map((item, index) => ({
+        name: item?.name || `Attachment ${index + 1}`,
+        data: item?.data || item,
+      })),
+      ingredients: (target.ingredients || []).map((item) => ({
+        name: item.name,
+        amount: item.MealIngredient?.quantityValue ?? null,
+        unit: item.MealIngredient?.quantityUnit || 'unit',
+        category: item.category || 'produce',
+      })),
+    };
+    await apiClient.updateMeal(user, mealId, payload);
+    await onRefresh();
+  };
+
   return (
     <section className="page">
-      <header className="page-header">
-        <p className="eyebrow">Meal Bank</p>
+      <div className="page-head-group">
+        <header className="page-header">
+          <p className="eyebrow">Meal Bank</p>
+        </header>
+
+        <div className="info-card guide-card">
+          <button
+            type="button"
+            className="collapsible-header"
+            onClick={() => setShowGuide((open) => !open)}
+            aria-expanded={showGuide}
+          >
+            <span>Dashboard guide</span>
+            <span className="collapsible-arrow">{showGuide ? '▾' : '▸'}</span>
+          </button>
+          {showGuide && (
+            <div className="collapsible-body">
+              <p className="lead">
+                Bank your meals, attach recipes and ingredients, and pull them into rotations without
+                rebuilding the details.
+              </p>
+              <ul>
+                <li>Filter by meal type or search by name to find an existing meal.</li>
+                <li>Add or edit a meal with servings, notes, links, and file attachments.</li>
+                <li>
+                  Each ingredient needs a name and amount/unit to save; add multiple rows as needed.
+                </li>
+                <li>Use the rotation page to drop saved meals into weekly plans.</li>
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="filters stretch with-action">
+        <div className="filters-group">
+          <input
+            placeholder="Search meals"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <select value={preferenceFilter} onChange={(e) => setPreferenceFilter(e.target.value)}>
+            {preferenceOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={() => {
             setShowForm((prev) => {
@@ -177,11 +305,11 @@ const MealBank = ({ meals, onRefresh, user }) => {
         >
           {showForm ? 'Close form' : 'Add meal'}
         </button>
-      </header>
+      </div>
 
       {showForm && (
         <form className="card form-card" onSubmit={handleSubmit}>
-          <div className="form-row">
+          <div className="form-block inline-two">
             <label>
               Meal name
               <input
@@ -205,51 +333,119 @@ const MealBank = ({ meals, onRefresh, user }) => {
                 }}
               />
             </label>
-            <label>
-              Preference
-              <select
-                value={formState.preference}
-                onChange={(e) =>
-                  setFormState((prev) => ({ ...prev, preference: e.target.value }))
-                }
-              >
-                {preferenceOptions
-                  .filter((option) => option.value !== 'all')
-                  .map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-              </select>
-            </label>
           </div>
 
-            <label>
-              Image
-              <div className="file-row">
+          <div className="form-block">
+            <p className="small-label">Meal type(s)</p>
+            <div className="pill-options wide">
+              {preferenceOptions
+                .filter((option) => option.value !== 'all')
+                .map((option) => {
+                  const checked = formState.preference.includes(option.value);
+                  return (
+                    <button
+                      type="button"
+                      key={option.value}
+                      className={checked ? 'pill active' : 'pill'}
+                      onClick={() =>
+                        setFormState((prev) => {
+                          const next = new Set(prev.preference);
+                          if (checked) {
+                            next.delete(option.value);
+                          } else {
+                            next.add(option.value);
+                          }
+                          return { ...prev, preference: Array.from(next) };
+                        })
+                      }
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+
+          <div className="form-block">
+            <p className="small-label">Cover photo</p>
+            <label className="upload-card wide">
+              <div className="upload-header">
+                <p className="muted small-label">Upload an image for this meal</p>
+                {formState.imageUrl && (
+                  <button
+                    type="button"
+                    className="ghost small"
+                    onClick={() => setFormState((prev) => ({ ...prev, imageUrl: '' }))}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <div className="dropzone">
                 <input
-                  type="url"
-                  placeholder="Image URL"
-                  value={formState.imageUrl || ''}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/*"
+                  onChange={handleImageFile}
                 />
-                <input type="file" accept="image/*" onChange={handleImageFile} />
               </div>
               {formState.imageUrl && (
                 <img src={formState.imageUrl} alt="Meal preview" className="image-preview" />
               )}
             </label>
+          </div>
 
-            <label>
-              Notes
-              <textarea
-                value={formState.notes}
-                onChange={(e) => setFormState((prev) => ({ ...prev, notes: e.target.value }))}
-                placeholder="Serving notes, prep, etc."
+          <div className="form-block">
+            <p className="small-label">Recipe link</p>
+            <label className="upload-card wide">
+              <input
+                type="url"
+                placeholder="https://..."
+                value={formState.recipeLink || ''}
+                onChange={(e) => setFormState((prev) => ({ ...prev, recipeLink: e.target.value }))}
               />
             </label>
+          </div>
 
-          <div className="ingredients-builder">
+          <div className="form-block">
+            <div className="upload-header">
+              <p className="small-label">Recipe files (images/PDFs)</p>
+              {formState.recipeAttachment?.length > 0 && (
+                <button
+                  type="button"
+                  className="ghost small"
+                  onClick={() => setFormState((prev) => ({ ...prev, recipeAttachment: [] }))}
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+            <label className="upload-card wide">
+                <div className="dropzone">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/*,application/pdf"
+                    onChange={handleRecipeAttachment}
+                  />
+                </div>
+              {formState.recipeAttachment?.length > 0 && (
+                <p className="muted small-label">
+                  {formState.recipeAttachment.length} file(s) ready to save
+                </p>
+              )}
+            </label>
+          </div>
+
+          <div className="form-block">
+            <p className="small-label">Notes</p>
+            <textarea
+              value={formState.notes}
+              onChange={(e) => setFormState((prev) => ({ ...prev, notes: e.target.value }))}
+              placeholder="Serving notes, prep, etc."
+            />
+          </div>
+
+          <div className="form-block">
             <p className="muted small-label">Ingredients</p>
             {formState.ingredients.map((ingredient, index) => (
               <div className="ingredient-row" key={`ingredient-${index}`}>
@@ -266,10 +462,7 @@ const MealBank = ({ meals, onRefresh, user }) => {
                   value={ingredient.amount}
                   onChange={(e) => updateIngredient(index, 'amount', e.target.value)}
                 />
-                <select
-                  value={ingredient.unit}
-                  onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
-                >
+                <select value={ingredient.unit} onChange={(e) => updateIngredient(index, 'unit', e.target.value)}>
                   {unitOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -290,6 +483,18 @@ const MealBank = ({ meals, onRefresh, user }) => {
                   <option value="beverages">Beverages</option>
                   <option value="other">Other</option>
                 </select>
+                <button
+                  type="button"
+                  className="ghost small danger"
+                  onClick={() =>
+                    setFormState((prev) => ({
+                      ...prev,
+                      ingredients: prev.ingredients.filter((_, i) => i !== index),
+                    }))
+                  }
+                >
+                  Remove
+                </button>
               </div>
             ))}
             <button type="button" className="ghost add-ingredient" onClick={addIngredientRow}>
@@ -309,34 +514,35 @@ const MealBank = ({ meals, onRefresh, user }) => {
           </div>
         </form>
       )}
-
-      <div className="filters stretch">
-        <input
-          placeholder="Search meals"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <select value={preferenceFilter} onChange={(e) => setPreferenceFilter(e.target.value)}>
-          {preferenceOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
       <div className="grid gallery">
-        {filteredMeals.map((meal) => (
+        {filteredMeals.map((meal, index) => {
+          const rowIndex = Math.floor(index / columns);
+          const isOpen = expandedRows.has(rowIndex);
+          return (
           <MealCard
             key={meal.id}
             meal={meal}
+            open={isOpen}
+            onToggle={() =>
+              setExpandedRows((prev) => {
+                const next = new Set(prev);
+                if (next.has(rowIndex)) {
+                  next.delete(rowIndex);
+                } else {
+                  next.add(rowIndex);
+                }
+                return next;
+              })
+            }
+            onUpdateAttachments={(attachments) => handleUpdateAttachments(meal.id, attachments)}
             onEdit={() => {
               handleEditMeal(meal);
               scrollToForm();
             }}
             onDelete={() => handleDeleteMeal(meal.id)}
           />
-        ))}
+        );
+        })}
         {filteredMeals.length === 0 && (
           <div className="empty-state">No meals match that search just yet.</div>
         )}
