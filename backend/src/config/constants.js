@@ -1,4 +1,4 @@
-const ALLOWED_USERNAMES = ['kuato', 'noodle', 'father', 'boodle'];
+const ALLOWED_USERNAMES = ['kuato', 'noodle', 'father', 'boodle', 'louis'];
 
 const MEAL_PREFERENCES = [
   'breakfast',
